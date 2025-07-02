@@ -1,82 +1,94 @@
+
 from flask import Flask, request
-from twilio.twiml.messaging_response import MessagingResponse
+from twilio.twiml import MessagingResponse
+import re
 
 app = Flask(__name__)
 
-# Xogta lacagaha
-payments = {
-    '0.24': '*712*617313335*0.24#',
-    '0.44': '*712*617313335*0.44#',
-    '0.85': '*712*617313335*0.85#',
-    '1.75': '*712*617313335*1.75#',
-    '3.55': '*712*617313335*3.55#',
-    '4.45': '*712*617313335*4.45#',
-    '8.95': '*712*617313335*8.95#',
-}
-
-packages = {
-    '1': {
-        'name': 'Anfac Plus',
-        'details': [
-            "1. $0.24 → 400MB + 10min (10 days)",
-            "2. $0.44 → 850MB + 30min (14 days)",
-            "3. $0.85 → 2GB + 80min (14 days)",
-            "4. $1.75 → 5GB + 160min (30 days)",
-            "5. $3.55 → 10GB + 320min + 200SMS (30 days)",
-            "6. $4.45 → 12GB + 400min + 150SMS (30 days)",
-            "7. $8.95 → 28GB + 800min + 300SMS (45 days)",
-        ],
-    }
-}
-
-# Kaydinta xogta dadka
-users_paid = set()
-user_selected_amount = {}
-
-@app.route("/sms", methods=['POST'])
+@app.route('/sms', methods=['POST'])
 def sms_reply():
-    from_number = request.form.get('From')
-    text = request.form.get('Body', '').strip().lower()
-
+    """Jawaab bixinta fariimaha Twilio webhook"""
+    
+    # Fariin iyo sender-ka hel
+    incoming_msg = request.values.get('Body', '').lower().strip()
+    from_number = request.values.get('From', '')
+    
+    # TwiML response samee
     resp = MessagingResponse()
-    msg = resp.message()
+    
+    # Jawaabaha kala duwan
+    if 'hormuud' in incoming_msg:
+        reply = """✅ Waxaad dooratay Hormuud Telecom.
 
-    if from_number not in users_paid:
-        if text in payments:
-            user_selected_amount[from_number] = text
-            pkg = packages.get('1')
-            details_text = "\n".join(pkg['details'])
-            code = payments[text]
-            msg.body(
-                f"✅ Waxaad dooratay ${text}.\n\n"
-                f"📦 {pkg['name']} Packages:\n{details_text}\n\n"
-                f"💵 Si aad lacagta u bixiso, isticmaaal code-kan:\n{code}\n\n"
-                "Kadib markaad lacag bixiso, dir 'Done'"
-            )
-        elif text in ['done', 'ok', 'ready']:
-            users_paid.add(from_number)
-            msg.body(
-                "✅ Lacagta waa la xaqiijiyay. Waxaad hadda isticmaali kartaa adeegyada:\n\n"
-                "1️⃣ Anfac Plus\n\n"
-                "Fadlan qor lambarka adeegga aad rabto (tusaale: 1)"
-            )
-        else:
-            msg.body(
-                "💰 Fadlan dooro mid ka mid ah lacagaha:\n" +
-                "\n".join([f"- ${k}" for k in payments.keys()]) +
-                "\nAma dir 'Done' haddii aad lacag bixisay."
-            )
-        return str(resp)
+📱 Fadlan geli:
+- Lambarka telefoonka
+- Qadarka data (1GB, 2GB, 5GB, iwm)
 
-    # User horay lacag ayuu u bixiyay
-    if text == '1':
-        pkg = packages.get('1')
-        details_text = "\n".join(pkg['details'])
-        msg.body(f"📦 {pkg['name']} Packages:\n{details_text}")
+Tusaale: 252613123456 2GB"""
+    
+    elif 'somtel' in incoming_msg:
+        reply = """✅ Waxaad dooratay Somtel.
+
+📱 Fadlan geli:
+- Lambarka telefoonka  
+- Qadarka data (1GB, 2GB, 5GB, iwm)
+
+Tusaale: 252615123456 1GB"""
+    
+    elif 'somnet' in incoming_msg:
+        reply = """✅ Waxaad dooratay Somnet.
+
+📱 Fadlan geli:
+- Lambarka telefoonka
+- Qadarka data (1GB, 2GB, 5GB, iwm)
+
+Tusaale: 252617123456 3GB"""
+    
+    elif 'help' in incoming_msg or 'caawimo' in incoming_msg:
+        reply = """🆘 *Shaakir Data Reseller*
+
+Dooro mid ka mid ah:
+• Hormuud
+• Somtel  
+• Somnet
+
+Ama qor 'caawimo' wixii su'aal ah."""
+    
     else:
-        msg.body("Fadlan qor 1 si aad u doorato Anfac Plus, ama dir /start si aad u bilowdo.")
+        # Phone number iyo data pattern baadh
+        phone_pattern = r'252[6-7]\d{8}'
+        data_pattern = r'\d+GB|\d+gb'
+        
+        phone_match = re.search(phone_pattern, incoming_msg)
+        data_match = re.search(data_pattern, incoming_msg, re.IGNORECASE)
+        
+        if phone_match and data_match:
+            phone = phone_match.group()
+            data = data_match.group().upper()
+            reply = f"""📋 Waan helay codsigaaga:
+{phone} {data}
 
+⏳ Waan ka shaqeynayaa... Waxaan kuu soo diri doonaa xaqiijin dhow."""
+        else:
+            reply = """🆘 *Shaakir Data Reseller*
+
+Dooro mid ka mid ah:
+• Hormuud
+• Somtel
+• Somnet
+
+Ama qor 'caawimo' wixii su'aal ah."""
+    
+    resp.message(reply)
     return str(resp)
 
-if __name__ == "__main__":
-    app.run(debug=True)
+@app.route('/')
+def home():
+    return """
+    <h1>🌟 Shaakir Data Reseller Webhook</h1>
+    <p>✅ Webhook service wuu shaqeynayaa!</p>
+    <p>📱 Webhook URL: /sms</p>
+    """
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=1000, debug=True)
