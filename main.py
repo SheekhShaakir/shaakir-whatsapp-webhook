@@ -90,6 +90,12 @@ def home():
     <p>✅ Webhook service wuu shaqeynayaa!</p>
     <p>📱 Webhook URL: /sms</p>
     """
+@app.route("/status", methods=["POST"])
+def message_status():
+    message_sid = request.form.get("MessageSid")
+    message_status = request.form.get("MessageStatus")
+    print(f"📡 Fariin {message_sid} ayaa status-keedu yahay: {message_status}")
+    return "OK", 200
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
