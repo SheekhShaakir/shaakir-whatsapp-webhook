@@ -1,21 +1,22 @@
 
 from flask import Flask, request
-from twilio.twiml import MessagingResponse
+from twilio.twiml.messaging_response import MessagingResponse
 import re
+import os
 
 app = Flask(__name__)
 
 @app.route('/sms', methods=['POST'])
 def sms_reply():
     """Jawaab bixinta fariimaha Twilio webhook"""
-    
+
     # Fariin iyo sender-ka hel
     incoming_msg = request.values.get('Body', '').lower().strip()
     from_number = request.values.get('From', '')
-    
+
     # TwiML response samee
     resp = MessagingResponse()
-    
+
     # Jawaabaha kala duwan
     if 'hormuud' in incoming_msg:
         reply = """✅ Waxaad dooratay Hormuud Telecom.
@@ -25,7 +26,7 @@ def sms_reply():
 - Qadarka data (1GB, 2GB, 5GB, iwm)
 
 Tusaale: 252613123456 2GB"""
-    
+
     elif 'somtel' in incoming_msg:
         reply = """✅ Waxaad dooratay Somtel.
 
@@ -34,7 +35,7 @@ Tusaale: 252613123456 2GB"""
 - Qadarka data (1GB, 2GB, 5GB, iwm)
 
 Tusaale: 252615123456 1GB"""
-    
+
     elif 'somnet' in incoming_msg:
         reply = """✅ Waxaad dooratay Somnet.
 
@@ -43,7 +44,7 @@ Tusaale: 252615123456 1GB"""
 - Qadarka data (1GB, 2GB, 5GB, iwm)
 
 Tusaale: 252617123456 3GB"""
-    
+
     elif 'help' in incoming_msg or 'caawimo' in incoming_msg:
         reply = """🆘 *Shaakir Data Reseller*
 
@@ -53,15 +54,15 @@ Dooro mid ka mid ah:
 • Somnet
 
 Ama qor 'caawimo' wixii su'aal ah."""
-    
+
     else:
         # Phone number iyo data pattern baadh
         phone_pattern = r'252[6-7]\d{8}'
         data_pattern = r'\d+GB|\d+gb'
-        
+
         phone_match = re.search(phone_pattern, incoming_msg)
         data_match = re.search(data_pattern, incoming_msg, re.IGNORECASE)
-        
+
         if phone_match and data_match:
             phone = phone_match.group()
             data = data_match.group().upper()
@@ -78,7 +79,7 @@ Dooro mid ka mid ah:
 • Somnet
 
 Ama qor 'caawimo' wixii su'aal ah."""
-    
+
     resp.message(reply)
     return str(resp)
 
@@ -91,4 +92,7 @@ def home():
     """
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=1000, debug=True)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port, debug=True)
+
+
